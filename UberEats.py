@@ -1,15 +1,15 @@
 
-from os import path
-from unittest import result
-from urllib import response
-import os
+# from os import path
+# from unittest import result
+# from urllib import response
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import sqlite3
-import requests
-import mimetypes
-import os
+#import requests
+#import mimetypes
+#import os
 import re
 
 # Initialize the data_url variable
@@ -38,17 +38,13 @@ def get_file_id_from_url(data_url):
         return match.group(1)
     return None
 
-    
-    # Extract file IDs from the URLs
-    file_id = get_file_id_from_url(data_url)
 def get_file_extension(data_url):
     file_id=get_file_id_from_url(data_url)
     download_url = f'https://drive.google.com/uc?export=download&id={file_id}'
-    response = requests.get(download_url)
-    file_name=(response.headers.get("Content-Disposition"))
+    # response = requests.get(download_url)
+    # file_name=(response.headers.get("Content-Disposition"))
     #st.write(file_name)
-    return file_name,download_url
-
+    return download_url
 
 @st.cache_data
 def preprocess(df,file_name):
@@ -56,23 +52,21 @@ def preprocess(df,file_name):
     # 1. Duplicate Removal  
     df=df.drop_duplicates().copy()
 
-    if ".csv" in file_name:
+    #st.write(f"DataFrame shape after dropping rows with missing 'rate': {df.shape}")
 
+    # 3. Rating Normalization
+    if "rate" in df.columns:
         # 2. Missing Value Handling (dropping rows with missing 'rate')
-        df=df.dropna(subset=['rate'])
-        #st.write(f"DataFrame shape after dropping rows with missing 'rate': {df.shape}")
-
-        # 3. Rating Normalization
-        if "rate" in df.columns:
-            #st.write(f"DataFrame shape before rating normalization: {df.shape}")
-            df["rate"] = pd.to_numeric(
-                df["rate"].astype(str).str.replace("/5", "", regex=False),
-                errors="coerce"
-            )
-            rating_bins = [0, 2.5, 3.5, 4.0, 5.1]
-            rating_labels = ['Low', 'Average', 'Good', 'Excellent']  
-            df['rating_category'] = pd.cut(df['rate'], bins=rating_bins, labels=rating_labels, right=False)
-     
+        df=df.dropna(subset=['rate'])    
+        #st.write(f"DataFrame shape before rating normalization: {df.shape}")
+        df["rate"] = pd.to_numeric(
+        df["rate"].astype(str).str.replace("/5", "", regex=False),
+            errors="coerce"
+        )
+        rating_bins = [0, 2.5, 3.5, 4.0, 5.1]
+        rating_labels = ['Low', 'Average', 'Good', 'Excellent']  
+        df['rating_category'] = pd.cut(df['rate'], bins=rating_bins, labels=rating_labels, right=False)
+    
         # 4. Cost Standardization
         if "approx_cost(for two people)" in df.columns:
             cost = "approx_cost(for two people)"
@@ -93,9 +87,9 @@ def preprocess(df,file_name):
             )
     return df
 
-def load_and_process_data(data_url):
+def load_and_process_data(data_url,file_name):
     try:
-        file_name, download_url = get_file_extension(data_url)
+        download_url = get_file_extension(data_url)
         if ".csv" in file_name:
             df = pd.read_csv(download_url)
             #st.write(f"DataFrame shape after loading CSV: {df.shape}")
@@ -121,20 +115,28 @@ def select_query(Questions, Queries):
 @st.cache_resource
 def create_database(df):
     conn = sqlite3.connect("ubereats.db")
-    df.to_sql("cleaned_data", conn, if_exists="replace", index=False)
 
-    #creatin indexes for faster query execution
-    
-    cursor = conn.cursor()
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_location ON cleaned_data(location)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_price ON cleaned_data(price_segment)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_cuisine ON cleaned_data(cuisines)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_online ON cleaned_data(online_order)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_book ON cleaned_data(book_table)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_rate ON cleaned_data(rate)")
+    try:
+        df.to_sql("cleaned_data", conn, if_exists="replace", index=False)
 
-    conn.commit()
-    conn.close()
+        
+        #creating indexes for faster query execution        
+        cursor = conn.cursor()
+        if('location' in df.columns):
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_location ON cleaned_data(location)")
+        if('price_segment' in df.columns):
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_price ON cleaned_data(price_segment)")
+        if('cuisines' in df.columns):
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_cuisine ON cleaned_data(cuisines)")
+        if('online_order' in df.columns):
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_online ON cleaned_data(online_order)")
+        if('book_table' in df.columns):
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_book ON cleaned_data(book_table)")
+        if('rate' in df.columns):
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_rate ON cleaned_data(rate)")
+        conn.commit()
+    finally:
+        conn.close()
 
 def execute_query(query):
     conn = sqlite3.connect("ubereats.db")
@@ -158,10 +160,11 @@ analysis_choice = st.sidebar.selectbox(
 )
 
 if analysis_choice == analysis_Options[0]:
-    st.title('Welcome to Uber Eats Order Data Analysis: Please select an analysis from the dropdown in the sidebar.')
+    st.title('Welcome to Uber Eats Order Data Analysis:' + '\n' + ' Please select an analysis from the dropdown in the sidebar.')
 else:
     if analysis_choice == analysis_Options[1]:
         st.title(analysis_choice)
+        file_name = 'UberEats_Dataset.csv'
         # Google Drive URL for direct download
         data_url = 'https://drive.google.com/uc?export=download&id=19QzAIMQi3i4ggwWHXx325Y7aVIH3dyUx'
 
@@ -382,6 +385,7 @@ else:
 
     elif analysis_choice ==analysis_Options[2]:
         st.title(analysis_choice)
+        file_name = 'UberEats_Order_Dataset.json'
         data_url = 'https://drive.google.com/file/d/14bII0uj7A8OyBqruIy8n_CPpGyPoYOoA/view?usp=sharing'
 
         #Defining Restaurant_Order Questions
@@ -499,7 +503,7 @@ else:
         st.write("Please select an analysis from the dropdown to see the analysis results.")
 
 if not data_url =="": 
-    processed_df = load_and_process_data(data_url)
+    processed_df = load_and_process_data(data_url,file_name)
     create_database(processed_df) 
 
     if not processed_df.empty and processed_df is not None:
