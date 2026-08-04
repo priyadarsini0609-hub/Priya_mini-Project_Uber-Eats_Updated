@@ -1,4 +1,3 @@
-
 # from os import path
 # from unittest import result
 # from urllib import response
@@ -15,11 +14,7 @@ import re
 # Initialize the data_url variable
 data_url = ""
 
-# Initialize query variable
-query = ""
-file_id=""
-file_name=""
-path=""
+
 
 
 
@@ -38,7 +33,7 @@ def get_file_id_from_url(data_url):
         return match.group(1)
     return None
 
-def get_file_extension(data_url):
+def get_download_url(data_url):
     file_id=get_file_id_from_url(data_url)
     download_url = f'https://drive.google.com/uc?export=download&id={file_id}'
     # response = requests.get(download_url)
@@ -47,7 +42,7 @@ def get_file_extension(data_url):
     return download_url
 
 @st.cache_data
-def preprocess(df,file_name):
+def preprocess(df):
 
     # 1. Duplicate Removal  
     df=df.drop_duplicates().copy()
@@ -89,7 +84,7 @@ def preprocess(df,file_name):
 
 def load_and_process_data(data_url,file_name):
     try:
-        download_url = get_file_extension(data_url)
+        download_url = get_download_url(data_url)
         if ".csv" in file_name:
             df = pd.read_csv(download_url)
             #st.write(f"DataFrame shape after loading CSV: {df.shape}")
@@ -100,7 +95,7 @@ def load_and_process_data(data_url,file_name):
             st.error("Unsupported file")
             return pd.DataFrame()
         
-        return preprocess(df,file_name)
+        return preprocess(df)
     except Exception as e:
             st.error(f"Error loading or processing data: {e}")
             return pd.DataFrame() # Return empty DataFrame on error  
@@ -114,45 +109,45 @@ def select_query(Questions, Queries):
 
 @st.cache_resource
 def create_database(df):
-    conn = sqlite3.connect("ubereats.db")
-
-    try:
+    with sqlite3.connect("ubereats.db") as conn:
         df.to_sql("cleaned_data", conn, if_exists="replace", index=False)
-
-        
-        #creating indexes for faster query execution        
+   
+        #creating indexes for faster query execution
+       
         cursor = conn.cursor()
-        if('location' in df.columns):
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_location ON cleaned_data(location)")
-        if('price_segment' in df.columns):
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_price ON cleaned_data(price_segment)")
-        if('cuisines' in df.columns):
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_cuisine ON cleaned_data(cuisines)")
-        if('online_order' in df.columns):
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_online ON cleaned_data(online_order)")
-        if('book_table' in df.columns):
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_book ON cleaned_data(book_table)")
-        if('rate' in df.columns):
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_rate ON cleaned_data(rate)")
-        conn.commit()
-    finally:
-        conn.close()
+        columns = set(df.columns)
+        indexes = [
+    ("idx_location", "location"),
+    ("idx_price", "price_segment"),
+    ("idx_cuisine", "cuisines"),
+    ("idx_online", "online_order"),
+    ("idx_book", "book_table"),
+    ("idx_rate", "rate")
+]
 
+        for index_name, column in indexes:
+            if column in columns:
+                cursor.execute(
+            f"CREATE INDEX IF NOT EXISTS {index_name} "
+            f"ON cleaned_data({column})"
+        )
+
+# Execute an SQL query on the SQLite database and return the results.             
 def execute_query(query):
-    conn = sqlite3.connect("ubereats.db")
-
     try:
-        df = pd.read_sql(query, conn)
-        return df
-
+        with sqlite3.connect("ubereats.db") as conn:
+            df = pd.read_sql_query(query, conn)
+            return df
     except Exception as e:
         st.error(f"Error executing query: {e}")
-        return pd.DataFrame() # Return empty DataFrame on error
-       
-    finally:
-        conn.close()
-
+        return pd.DataFrame()
+    
 st.set_page_config(layout="wide")
+
+# Initialize session state
+if "current_dataset" not in st.session_state:
+    st.session_state.current_dataset = None
+
 # Add a selection widget in the sidebar
 analysis_Options = ["Please select an analysis", "UberEats_Dataset Analysis", "UberEats_Order Analysis"]
 analysis_choice = st.sidebar.selectbox(
@@ -165,7 +160,9 @@ else:
     if analysis_choice == analysis_Options[1]:
         st.title(analysis_choice)
         file_name = 'UberEats_Dataset.csv'
+
         # Google Drive URL for direct download
+
         data_url = 'https://drive.google.com/uc?export=download&id=19QzAIMQi3i4ggwWHXx325Y7aVIH3dyUx'
 
         #Defining Restaurant_Data Questions
@@ -378,7 +375,7 @@ else:
             """        
         }
         Ques = st.selectbox("Choose a question", Data_Questions)
-        if not Ques is Data_Questions[0]:
+        if Ques!=Data_Questions[0]:
             query=select_query(Ques, Data_queries)
         else:
             st.write("Please select an analysis from the dropdown to see the analysis results.")
@@ -494,7 +491,7 @@ else:
         """ 
         } 
         Ques = st.selectbox("Choose a question", Order_Questions)
-        if not Ques is Order_Questions[0]:
+        if Ques!=Order_Questions[0]:
             query=select_query(Ques, Order_queries)
             #st.write(f"Executing Query for: {Ques}")
         else:
@@ -504,10 +501,14 @@ else:
 
 if not data_url =="": 
     processed_df = load_and_process_data(data_url,file_name)
-    create_database(processed_df) 
 
-    if not processed_df.empty and processed_df is not None:
-        if not query == "" and not query is None:       
+    if not processed_df.empty:
+        # Create database only if dataset changes
+        if st.session_state.current_dataset != analysis_choice:
+            create_database(processed_df) 
+            st.session_state.current_dataset = analysis_choice
+
+        if query:       
             #st.write(f"Executing Query for: {Ques}")
             
             query_result = execute_query(query)   
@@ -524,7 +525,7 @@ if not data_url =="":
             st.write("Query is empty. Please select a question to execute the query.")   
 
     else:   
-        st.write("Dataframe Empty")
+        st.write("No Data Available. Please check the data URL or file format.")
 else:
     processed_df = pd.DataFrame()  # Create an empty DataFrame if no data URL is provided
     st.write("Please select an analysis from the dropdown to see the analysis results.")
