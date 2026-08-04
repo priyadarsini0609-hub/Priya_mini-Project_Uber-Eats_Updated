@@ -1,0 +1,282 @@
+Uber eats banalore
+
+Which Bangalore locations have the highest average restaurant ratings? Business Value: Identifies premium-performing areas suitable for brand positioning and new partner onboarding.
+
+
+# SQL query to find locations with the highest average restaurant ratings
+query = """
+SELECT
+    location,
+    AVG(rate) AS average_rating
+FROM
+    cleaned_data
+GROUP BY
+    location
+ORDER BY
+    average_rating DESC
+LIMIT 10;
+"""
+
+________________________________________
+
+2. Which locations are over-saturated with restaurants?
+ Business Value: Helps avoid overcrowded markets and guides smarter expansion decisions.
+
+# SQL query to find locations with the highest number of restaurants
+query = """
+SELECT
+    location,
+    COUNT(*) AS restaurant_count
+FROM
+    cleaned_data
+GROUP BY
+    location
+ORDER BY
+    restaurant_count DESC
+LIMIT 10;
+"""
+
+_________________________________________
+
+3. Does online ordering improve restaurant ratings?
+ Business Value: Evaluates the ROI of Uber Eats’ online ordering feature for partners.
+# SQL query to compare average ratings based on online order availability
+query = """
+SELECT
+    online_order,
+    AVG(rate) AS average_rating,
+    COUNT(*) AS restaurant_count
+FROM
+    cleaned_data
+GROUP BY
+    online_order
+ORDER BY
+    average_rating DESC;
+"""_________________________________________________________
+
+4. # SQL query to compare average ratings based on table booking availability
+query = """
+SELECT
+    book_table,
+    AVG(rate) AS average_rating,
+    COUNT(*) AS restaurant_count
+FROM
+    cleaned_data
+GROUP BY
+    book_table
+ORDER BY
+    average_rating DESC;
+"""
+
+______________________________________________________________
+
+5. # SQL query to find average ratings per price segment
+query = """
+SELECT
+    price_segment,
+    AVG(rate) AS average_rating,
+    COUNT(*) AS restaurant_count
+FROM
+    cleaned_data
+GROUP BY
+    price_segment
+ORDER BY
+    average_rating DESC;
+"""
+
+__________________________________________________
+
+6. 
+
+print("Average restaurant ratings by price segment:")
+display(price_segment_ratings_df)
+
+
+_____________________________________________________
+
+7. Which cuisines are most common in Bangalore?
+ Business Value: Reveals market demand and cuisine saturation levels.
+
+
+# SQL query to find the most common cuisines in Bangalore
+query = """
+SELECT
+    cuisines,
+    COUNT(*) AS cuisine_count
+FROM
+    cleaned_data
+GROUP BY
+    cuisines
+ORDER BY
+    cuisine_count DESC
+LIMIT 10; -- Displaying top 10 most common cuisines
+"""
+
+___________________________
+
+
+8. 
+
+Which cuisines receive the highest average ratings?
+ Business Value: Identifies high-quality cuisine categories suitable for promotion.
+
+
+# SQL query to find cuisines with the highest average ratings
+query = """
+SELECT
+    cuisines,
+    AVG(rate) AS average_rating,
+    COUNT(*) AS restaurant_count
+FROM
+    cleaned_data
+GROUP BY
+    cuisines
+HAVING
+    restaurant_count > 5 -- Only consider cuisines with at least 5 restaurants to ensure representativeness
+ORDER BY
+    average_rating DESC
+LIMIT 10; -- Displaying top 10 cuisines by average rating
+"""
+
+_______________________________________________
+
+9. Which cuisines perform well despite having fewer restaurants?
+ Business Value: Highlights niche opportunities for differentiation.
+
+
+# SQL query to find high-rated cuisines with fewer restaurants
+query = """
+SELECT
+    cuisines,
+    AVG(rate) AS average_rating,
+    COUNT(*) AS restaurant_count
+FROM
+    cleaned_data
+GROUP BY
+    cuisines
+HAVING
+    average_rating >= 4.5 AND restaurant_count > 5 -- High rating (>=4.5) and a minimum count for representativeness
+ORDER BY
+    restaurant_count ASC, average_rating DESC -- Order by fewer restaurants first, then by higher rating
+LIMIT 10; -- Displaying top 10 niche opportunities
+"""
+
+
+
+_________________________________________________________________
+
+10. What is the relationship between restaurant cost and rating?
+ Business Value: Determines whether higher pricing translates to better customer perception.
+
+
+___________________________________
+
+11. Which locations are ideal for premium restaurant onboarding?
+ Business Value: Combines cost, rating, and location insights to guide premium expansion.
+
+
+# SQL query to find ideal locations for premium restaurant onboarding
+# Filter for 'Expensive' and 'Very Expensive' segments, then rank by average rating and restaurant count
+query = """
+SELECT
+    location,
+    AVG(rate) AS average_premium_rating,
+    COUNT(*) AS premium_restaurant_count
+FROM
+    cleaned_data
+WHERE
+    price_segment IN ('Expensive', 'Very Expensive')
+GROUP BY
+    location
+HAVING
+    premium_restaurant_count > 5 -- Ensure a minimum number of premium restaurants for statistical significance
+ORDER BY
+    average_premium_rating DESC, premium_restaurant_count ASC
+LIMIT 10; -- Displaying top 10 ideal locations
+"""
+
+________________________________________________
+
+12. Which locations show high demand but lower average ratings?
+ Business Value: Indicates areas where quality improvement initiatives are needed.
+
+# SQL query to find locations with high demand but lower average ratings
+query = """
+SELECT
+    location,
+    COUNT(*) AS restaurant_count,
+    AVG(rate) AS average_rating
+FROM
+    cleaned_data
+GROUP BY
+    location
+HAVING
+    restaurant_count > 100 -- Define 'high demand' as more than 100 restaurants
+ORDER BY
+    average_rating ASC, restaurant_count DESC -- Order by lowest average rating first, then by demand
+LIMIT 10; -- Displaying top 10 locations matching the criteria
+"""
+
+_____________________________________________________________________
+
+13. Do restaurants offering both online ordering and table booking perform better?
+ Business Value: Validates bundled feature adoption for partners.
+
+# SQL query to analyze performance based on online ordering and table booking
+query = """
+SELECT
+    online_order,
+    book_table,
+    AVG(rate) AS average_rating,
+    COUNT(*) AS restaurant_count
+
+FROM
+    cleaned_data
+GROUP BY
+    online_order, book_table
+ORDER BY
+    average_rating DESC;
+"""
+_________________________________________________________________________
+
+14. What combination of factors maximizes restaurant success on Uber Eats?
+ (Pricing + Location + Cuisine + Platform Features)
+ Business Value: Supports strategic partner recommendations.(DOubtful)
+
+# SQL query to get average ratings by price segment, location, and cuisine
+query = """
+SELECT
+    price_segment,
+    location,
+    cuisines,
+    AVG(rate) AS average_rating,
+    COUNT(*) AS restaurant_count
+FROM
+    cleaned_data
+GROUP BY
+    price_segment, location, cuisines
+HAVING
+    restaurant_count >= 5 -- Ensure statistical significance for each combination
+ORDER BY
+    average_rating DESC, restaurant_count DESC
+LIMIT 20; -- Displaying the top 20 combinations with highest average ratings
+"""
+___________________________________________________________
+
+15.  Which restaurants are top performers within each pricing segment?
+ Business Value: Helps identify benchmark partners and best practices.
+
+# SQL query to get average ratings and restaurant count by price segment
+query = """
+SELECT
+    price_segment,
+    AVG(rate) AS average_rating,
+    COUNT(*) AS restaurant_count
+FROM
+    cleaned_data
+GROUP BY
+    price_segment
+ORDER BY
+    average_rating DESC;
+"""
+_____________________________________________________________________________________
