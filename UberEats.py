@@ -28,7 +28,7 @@ def get_file_id_from_url(data_url):
 
 def get_download_url(data_url):
     
-    file_id=get_file_id_from_url(data_url)
+    file_id = get_file_id_from_url(data_url)
     if file_id is None:
         raise ValueError("Invalid Google Drive URL")
     else:
@@ -82,10 +82,10 @@ def preprocess(df):
 def load_and_process_data(data_url,file_name):
     try:
         download_url = get_download_url(data_url)
-        if ".csv" in file_name:
+        if file_name.endswith(".csv"):
             df = pd.read_csv(download_url)
             #st.write(f"DataFrame shape after loading CSV: {df.shape}")
-        elif ".json" in file_name:
+        elif file_name.endswith(".json"):
             df = pd.read_json(download_url)
             #st.write(f"DataFrame shape after loading JSON: {df.shape}")
         else:
