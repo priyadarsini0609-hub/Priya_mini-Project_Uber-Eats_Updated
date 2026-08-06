@@ -1,28 +1,21 @@
-# from os import path
-# from unittest import result
-# from urllib import response
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import sqlite3
-#import requests
-#import mimetypes
-#import os
 import re
 
-# Initialize the data_url variable
+# Initialize the variable
 data_url = ""
-
-
-
-
+query = ""
+Restaurant_file = "UberEats_Dataset.csv"
+Order_file = "UberEats_Order_Dataset.json"
 
 # Defining the required functions
 
 def get_file_id_from_url(data_url):
 
     # Extracts the file ID from a Google Drive URL.
+
     # Supports both 'drive.google.com/file/d/FILE_ID' and 'drive.google.com/uc?id=FILE_ID' formats.
    
     match = re.search(r'(?:id=)([a-zA-Z0-9_-]+)', data_url) # For uc?id=FILE_ID
@@ -34,12 +27,16 @@ def get_file_id_from_url(data_url):
     return None
 
 def get_download_url(data_url):
+    
     file_id=get_file_id_from_url(data_url)
-    download_url = f'https://drive.google.com/uc?export=download&id={file_id}'
-    # response = requests.get(download_url)
-    # file_name=(response.headers.get("Content-Disposition"))
-    #st.write(file_name)
-    return download_url
+    if file_id is None:
+        raise ValueError("Invalid Google Drive URL")
+    else:
+        download_url = f'https://drive.google.com/uc?export=download&id={file_id}'
+        # response = requests.get(download_url)
+        # file_name=(response.headers.get("Content-Disposition"))
+        #st.write(file_name)
+        return download_url
 
 @st.cache_data
 def preprocess(df):
@@ -101,7 +98,10 @@ def load_and_process_data(data_url,file_name):
             return pd.DataFrame() # Return empty DataFrame on error  
 def select_query(Questions, Queries):
     #st.write(f"Selected Question: {Questions} and Query: {query}" )
-    query = Queries.get(f"Questions[{Questions.split('.')[0]}]", "")
+
+    question_no = Questions.split(".")[0]
+    query = Queries.get(f"Questions[{question_no}]", "")
+
     #st.write(f"Selected Question: {Questions} and Query: {query}" )
     return query
 
@@ -132,8 +132,11 @@ def create_database(df):
             f"ON cleaned_data({column})"
         )
 
-# Execute an SQL query on the SQLite database and return the results.             
+           
 def execute_query(query):
+
+    """Execute an SQL query on the SQLite database and return the results."""
+
     try:
         with sqlite3.connect("ubereats.db") as conn:
             df = pd.read_sql_query(query, conn)
@@ -155,12 +158,12 @@ analysis_choice = st.sidebar.selectbox(
 )
 
 if analysis_choice == analysis_Options[0]:
-    st.title('Welcome to Uber Eats Order Data Analysis:' + '\n' + ' Please select an analysis from the dropdown in the sidebar.')
+    st.title('Welcome to Uber Eats Order Data Analysis:') 
+    st.sidebar.info(' Please select an analysis from the dropdown in the sidebar.')
 else:
     if analysis_choice == analysis_Options[1]:
         st.title(analysis_choice)
-        file_name = 'UberEats_Dataset.csv'
-
+        file_name = Restaurant_file
         # Google Drive URL for direct download
 
         data_url = 'https://drive.google.com/uc?export=download&id=19QzAIMQi3i4ggwWHXx325Y7aVIH3dyUx'
@@ -371,18 +374,18 @@ else:
             FROM
                 cleaned_data
             GROUP BY
-                name, price_segment;
+                name, price_segment ORDER BY average_rating DESC;
             """        
         }
         Ques = st.selectbox("Choose a question", Data_Questions)
         if Ques!=Data_Questions[0]:
             query=select_query(Ques, Data_queries)
         else:
-            st.write("Please select an analysis from the dropdown to see the analysis results.")
+            st.info("Please choose your question from the dropdown to see the analysis results.")
 
     elif analysis_choice ==analysis_Options[2]:
         st.title(analysis_choice)
-        file_name = 'UberEats_Order_Dataset.json'
+        file_name = Order_file
         data_url = 'https://drive.google.com/file/d/14bII0uj7A8OyBqruIy8n_CPpGyPoYOoA/view?usp=sharing'
 
         #Defining Restaurant_Order Questions
@@ -495,9 +498,7 @@ else:
             query=select_query(Ques, Order_queries)
             #st.write(f"Executing Query for: {Ques}")
         else:
-            st.write("Please select an analysis from the dropdown to see the analysis results.")
-    else:
-        st.write("Please select an analysis from the dropdown to see the analysis results.")
+            st.info("Please choose your question from the dropdown to see the analysis results.")
 
 if not data_url =="": 
     processed_df = load_and_process_data(data_url,file_name)
@@ -513,7 +514,7 @@ if not data_url =="":
             
             query_result = execute_query(query)   
             #st.write(f"Query: {query}")
-            st.write(f"Query Result for: {Ques}") 
+            st.info(f"Query Result for: {Ques}") 
 
             # Display the query result in a user-friendly format from index 1 instead of 0
             
@@ -521,14 +522,11 @@ if not data_url =="":
             df_display.index = df_display.index + 1
             st.dataframe(df_display)
 
-        else:
-            st.write("Query is empty. Please select a question to execute the query.")   
-
     else:   
-        st.write("No Data Available. Please check the data URL or file format.")
+        st.info("No Data Available. Please check the data URL or file format.")
 else:
     processed_df = pd.DataFrame()  # Create an empty DataFrame if no data URL is provided
-    st.write("Please select an analysis from the dropdown to see the analysis results.")
+    st.info("Please select an analysis from the dropdown in the sidebar to see the analysis results.")
 
 
    
