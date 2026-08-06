@@ -526,7 +526,7 @@ if not data_url =="":
         st.info("No Data Available. Please check the data URL or file format.")
 else:
     processed_df = pd.DataFrame()  # Create an empty DataFrame if no data URL is provided
-    st.info("Please select an analysis from the dropdown in the sidebar to see the analysis results.")
+    st.info("Please select an analysis from the dropdown into see the analysis results.")
 
 
    
